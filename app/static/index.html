@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TriModerate</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --error: #f87171;
+      --safe: #4ade80;
+      --flag: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 { margin: 0; font-size: 1.25rem; }
+    header p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.9rem; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .drop-zone.dragover, .drop-zone:hover { border-color: var(--accent); }
+    #file-input { display: none; }
+    #preview { max-height: 240px; max-width: 100%; margin: 1rem auto; display: none; border-radius: 8px; }
+    button {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.25rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #status { color: var(--muted); font-size: 0.9rem; margin-top: 0.75rem; }
+    #status.error { color: var(--error); }
+    #verdict {
+      font-size: 1.5rem;
+      font-weight: 700;
+      padding: 1rem;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+      margin-bottom: 1.5rem;
+    }
+    #verdict.safe { background: rgba(74, 222, 128, 0.12); color: var(--safe); border: 1px solid var(--safe); }
+    #verdict.flagged { background: rgba(248, 113, 113, 0.12); color: var(--flag); border: 1px solid var(--flag); }
+    #verdict .detail { font-size: 0.85rem; font-weight: 400; margin-top: 0.35rem; color: var(--muted); }
+    #explanation {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      display: none;
+      line-height: 1.5;
+    }
+    #explanation h2 { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+    #explanation .error { color: var(--error); font-size: 0.85rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .provider {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+    .provider h3 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      color: var(--accent);
+      text-transform: capitalize;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .badge.safe { background: rgba(74, 222, 128, 0.15); color: var(--safe); }
+    .badge.flagged { background: rgba(248, 113, 113, 0.15); color: var(--flag); }
+    .provider .error { color: var(--error); font-size: 0.85rem; }
+    .category { margin-top: 0.75rem; }
+    .category .row { display: flex; justify-content: space-between; font-size: 0.85rem; }
+    .category .row .name { text-transform: capitalize; }
+    .category .row .conf { color: var(--muted); }
+    .bar { background: #0b1220; border-radius: 4px; height: 8px; width: 100%; overflow: hidden; margin-top: 0.3rem; }
+    .bar > span { display: block; height: 100%; }
+    .bar > span.ok { background: var(--safe); }
+    .bar > span.flag { background: var(--flag); }
+    .empty { color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TriModerate</h1>
+    <p>One image assessed for unsafe content by Azure AI Content Safety, AWS Rekognition &amp; GCP Vision — side by side.</p>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="drop-zone" id="drop-zone">
+        <p>Click to choose an image, or drag &amp; drop it here.</p>
+        <input type="file" id="file-input" accept="image/*" />
+      </div>
+      <div style="text-align:center">
+        <img id="preview" alt="preview" />
+      </div>
+      <div style="text-align:center">
+        <button id="moderate-btn" disabled>Moderate</button>
+      </div>
+      <div id="status"></div>
+    </div>
+
+    <div id="verdict"></div>
+    <div id="explanation"></div>
+    <div class="grid" id="results"></div>
+  </main>
+
+  <script>
+    const dropZone = document.getElementById("drop-zone");
+    const fileInput = document.getElementById("file-input");
+    const preview = document.getElementById("preview");
+    const moderateBtn = document.getElementById("moderate-btn");
+    const status = document.getElementById("status");
+    const results = document.getElementById("results");
+    const verdictBox = document.getElementById("verdict");
+    const explanationBox = document.getElementById("explanation");
+
+    let selectedFile = null;
+
+    function setStatus(msg, isError = false) {
+      status.textContent = msg;
+      status.className = isError ? "error" : "";
+    }
+
+    function handleFile(file) {
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        setStatus("Please choose an image file.", true);
+        return;
+      }
+      selectedFile = file;
+      moderateBtn.disabled = false;
+      setStatus(file.name + " selected");
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        preview.src = e.target.result;
+        preview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", () => handleFile(fileInput.files[0]));
+
+    function renderVerdict(summary) {
+      const flagged = summary.verdict === "FLAGGED";
+      const errored = summary.verdict === "ERROR";
+      verdictBox.className = errored ? "flagged" : (flagged ? "flagged" : "safe");
+      verdictBox.style.display = "block";
+      verdictBox.innerHTML = "";
+      const label = document.createElement("div");
+      label.textContent = summary.verdict === "ERROR"
+        ? "ERROR — all providers failed to return a result"
+        : (flagged ? "FLAGGED" : "SAFE");
+      verdictBox.appendChild(label);
+      if (flagged && !errored) {
+        const detail = document.createElement("div");
+        detail.className = "detail";
+        detail.textContent = "Flagged by: " + (summary.flagging_providers || []).join(", ");
+        verdictBox.appendChild(detail);
+      }
+    }
+
+    function renderProvider(name, data) {
+      const box = document.createElement("div");
+      box.className = "provider";
+      const h3 = document.createElement("h3");
+      h3.textContent = name;
+      box.appendChild(h3);
+
+      if (data.error) {
+        const err = document.createElement("div");
+        err.className = "error";
+        err.textContent = data.error;
+        box.appendChild(err);
+        return box;
+      }
+
+      const badge = document.createElement("span");
+      badge.className = "badge " + (data.flagged ? "flagged" : "safe");
+      badge.textContent = data.flagged ? "Flagged" : "Safe";
+      h3.appendChild(badge);
+
+      const cats = data.categories || [];
+      if (cats.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No categories returned.";
+        box.appendChild(empty);
+        return box;
+      }
+
+      for (const c of cats) {
+        const div = document.createElement("div");
+        div.className = "category";
+        const row = document.createElement("div");
+        row.className = "row";
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = c.category + (c.label && c.label !== c.category ? " (" + c.label + ")" : "");
+        const conf = document.createElement("span");
+        conf.className = "conf";
+        conf.textContent = Math.round(c.confidence * 100) + "%";
+        row.appendChild(name);
+        row.appendChild(conf);
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        const fill = document.createElement("span");
+        fill.className = c.flagged ? "flag" : "ok";
+        fill.style.width = Math.round(c.confidence * 100) + "%";
+        bar.appendChild(fill);
+        div.appendChild(row);
+        div.appendChild(bar);
+        box.appendChild(div);
+      }
+      return box;
+    }
+
+    function renderExplanation(data) {
+      explanationBox.innerHTML = "";
+      if (data.explanation_error) {
+        const err = document.createElement("div");
+        err.className = "error";
+        err.textContent = "Explanation unavailable: " + data.explanation_error;
+        explanationBox.appendChild(err);
+      } else if (data.explanation) {
+        const h2 = document.createElement("h2");
+        h2.textContent = "LLM Summary";
+        const p = document.createElement("p");
+        p.textContent = data.explanation;
+        explanationBox.appendChild(h2);
+        explanationBox.appendChild(p);
+      } else {
+        return;
+      }
+      explanationBox.style.display = "block";
+    }
+
+    moderateBtn.addEventListener("click", async () => {
+      if (!selectedFile) return;
+      moderateBtn.disabled = true;
+      results.innerHTML = "";
+      verdictBox.style.display = "none";
+      explanationBox.style.display = "none";
+      setStatus("Moderating with all three clouds...");
+
+      const form = new FormData();
+      form.append("file", selectedFile);
+
+      try {
+        const res = await fetch("/moderate/explain", { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) {
+          setStatus(data.detail || "Request failed", true);
+          return;
+        }
+        renderVerdict(data.summary);
+        renderExplanation(data);
+        for (const [name, result] of Object.entries(data.results)) {
+          results.appendChild(renderProvider(name, result));
+        }
+        setStatus("Done.");
+      } catch (err) {
+        setStatus("Request failed: " + err, true);
+      } finally {
+        moderateBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Secrets — never commit
+.env
+*.key.json
+service-account*.json
+credentials*.json
+vision-demo*.json
+
+# OS / editor
+.DS_Store
+*.Zone.Identifier
+.vscode/
+.idea/
