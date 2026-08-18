@@ -137,7 +137,6 @@ test_app.py                # smoke tests (TestClient + mocked providers)
 
 The overall verdict is **FLAGGED** if any provider flags the image.
 
-## Interview talking points
 
 - **Normalized schema**: three very different moderation APIs (severity levels,
   label confidences, likelihood enums) map into one consistent shape.
